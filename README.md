@@ -1,83 +1,49 @@
 # replacevars
 
-Simple variable replacement for text files, with `bash`.
+Replace environment variable references in a file.
 
 ## Installation
 
-TBD
+[Download the script](https://raw.githubusercontent.com/cwilper/replacevars/master/replacevars), make it executable,
+and put it in your `PATH`.
+
+You can also source the script and [use as it a bash function](https://raw.githubusercontent.com/cwilper/replacevars/master/sourcing-example.sh),
+avoiding the need to export variables.
 
 ## Usage
 
 ```
-replacevars [-i] file [ldelim] [rdelim]
+replacevars [-t] ( -f file | -i file | - ) [ldelim] [rdelim]
 ```
 
 Where:
-
-* `-i` replaces the file in place. By default, the modified text will go to standard output.
-* `file` is the input file with variables to be replaced.
-* `ldelim` is the left delimiter for variable names in the source file. By default, this is `{{`.
-* `rdelim` is the right delimiter for variable names in the source file. By default, this is `}}`.
-
-Note:
-* When specifying custom delimiters, you may need to escape some characters  with `\` so that `sed` interprets
-them correctly.
+  * `-t` prints variables in the input in the order they appear, and exits (for testing)
+  * `-f` gets input from a file and prints the result to `stdout`
+  * `-i` gets input from a file and overwrites it with the result
+  * `-` gets input from `stdin` and prints the result to `stdout`
+  * `ldelim` is the left delimiter for variable references (default is `{{`)
+  * `rdelim` is the right delimiter for variable references (default is `}}`)
 
 ## Examples
 
-## Standard delimiters, standard output
-
-Given the input file:
-
 ```
-Dear {{name}},
+  command> echo "Hi {{first}} {{last}}" | replacevars -
+   stderr> Undefined variable: first
 
-This is example {{num}} of {{max}} possible.
-```
+  command> echo "Hi {{first}} {{last}}" | first=Some last=Person replacevars -
+   stdout> Hi Some Person
 
-This command:
+     file> Hi ${first} ${last}
+  command> first=Some last=Person replacevars -f file '${' '}'
+   stdout> Hi Some Person
 
-```bash
-Yields this output:
-name="Sir or Madam" num=one max=many ./replacevars source-file.txt
-```
+     file> Hi {{first}} {{last}}
+  command> first=Some last=Person replacevars -i file
+     file> Hi Some Person
+   stdout> 2 variables replaced
 
-Prints the following:
-
-```
-Dear Some Person,
-
-This is example 1 of many possible.
-```
-
-## Custom delimiters, in place
-
-Given the input file:
-
-```
-${holiday} is my favorite holiday. It happens ${frequency}.
-```
-
-..this command:
-
-```bash
-holiday=Halloween frequency=yearly ./replacevars -i source-file.txt '${' '}'
-```
-
-..replaces the file with:
-
-```
-Halloween is my favorite holiday. It happens yearly.
-```
-
-..and prints the following:
-
-```
-3 variables replaced
-```
-
-Running the same command again will have no effect, and will print the following:
-
-```
-0 variables replaced
+     file> Hi Some Person
+  command> first=Some last=Person replacevars -i file
+     file> Hi Some Person
+   stdout> 0 variables replaced
 ```

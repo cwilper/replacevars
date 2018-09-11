@@ -1,11 +1,64 @@
 #!/usr/bin/env bash
 
 replacevars() {
-  if [ "$1" == "-i" ]; then
-    inplace=true
+  if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
+    echo "replacevars - replace environment variable references in a file"
+    echo ""
+    echo "Usage: replacevars [-t] ( -f file | -i file | - ) [ldelim] [rdelim]"
+    echo ""
+    echo "Where:"
+    echo "  * -t prints all variables found in the input and exits (for testing)"
+    echo "  * -f gets input from a file and prints the result to stdout"
+    echo "  * -i gets input from a file and overwrites it with the result"
+    echo "  * - gets input from stdin and prints the result to stdout"
+    echo "  * ldelim is the left delimiter for variables in the file (default is '{{')"
+    echo "  * rdelim is the right delimiter for variables in the file (default is '}}')"
+    echo ""
+    echo "Examples:"
+    echo "  command> echo \"Hi {{first}} {{last}}\" | replacevars -"
+    echo "   stderr> Undefined variable: first"
+    echo ""
+    echo "  command> echo \"Hi {{first}} {{last}}\" | first=Some last=Person replacevars -"
+    echo "   stdout> Hi Some Person"
+    echo ""
+    echo "     file> Hi \${first} \${last}"
+    echo "  command> first=Some last=Person replacevars -f file '\${' '}'"
+    echo "   stdout> Hi Some Person"
+    echo ""
+    echo "     file> Hi {{first}} {{last}}"
+    echo "  command> first=Some last=Person replacevars -i file"
+    echo "     file> Hi Some Person"
+    echo "   stdout> 2 variables replaced"
+    echo ""
+    echo "     file> Hi Some Person"
+    echo "  command> first=Some last=Person replacevars -i file"
+    echo "     file> Hi Some Person"
+    echo "   stdout> 0 variables replaced"
+    return 0
+  fi
+  if [ "$1" == "-t" ]; then
+    testing=true
     shift
   fi
-  file="$1"
+  h="(-h for help)"
+  if [ "$1" == "-" ]; then
+    file=$(mktemp)
+    trap "{ rm -f $file > /dev/null 2>&1; }" EXIT
+    while read line; do
+      echo "$line" >> $file
+    done
+  else
+    if [ "$1" == "-i" ]; then
+      inplace=true
+    elif [ "$1" != "-f" ]; then
+      >&2 echo "Must specify -f, -i, or - $h"
+      exit 1
+    fi
+    shift
+    file="$1"
+  fi
+  [ -n "$file" ] || { >&2 echo "No file specified $h"; return 1; }
+  [ -e "$file" ] || { >&2 echo "No such file: $file $h"; return 1; }
   ldelim="{{"
   rdelim="}}"
   if [ "$2" != "" ]; then
@@ -14,12 +67,15 @@ replacevars() {
       rdelim="$3"
     fi
   fi
-  [ -e "$file" ] || { >&2 echo "No such file: $file"; return 1; }
   sedfile=$(mktemp)
   trap "{ rm -f $sedfile > /dev/null 2>&1; }" EXIT
   msg="special characters should be escaped with '\\'"
-  sed "s|$ldelim|∞|g" $file > /dev/null 2>&1 || { echo "Bad ldelim: '$ldelim', $msg"; exit 1; }
-  sed "s|$rdelim|∞|g" $file > /dev/null 2>&1 || { echo "Bad rdelim: '$rdelim', $msg"; exit 1; }
+  sed "s|$ldelim|∞|g" $file > /dev/null 2>&1 || { >&2 echo "Bad ldelim: '$ldelim', $msg"; exit 1; }
+  sed "s|$rdelim|∞|g" $file > /dev/null 2>&1 || { >&2 echo "Bad rdelim: '$rdelim', $msg"; exit 1; }
+  if [ "$testing" == "true" ]; then
+    sed "s|$ldelim|∞|g" $file | sed "s|$rdelim|∞|g" | awk -F'∞' '{ for (i=2; i<=NF; i+=2) print $i }' | grep [a-zA-Z]
+    exit $?
+  fi
   sed "s|$ldelim|∞|g" $file | sed "s|$rdelim|∞|g" | awk -F'∞' '{ for (i=2; i<=NF; i+=2) print $i }' | grep [a-zA-Z] | sort -u | {
     while read var; do
       val="$(eval "echo \"\$$var\"")"
@@ -28,6 +84,7 @@ replacevars() {
       echo "s/$ldelim$var$rdelim/$replacement/g" >> "$sedfile"
     done
   }
+  [ $? -eq 0 ] || exit 1
   n=$(echo $(wc -l < "$sedfile"))
   if [ "$inplace" == "true" ]; then
     if [ $n -eq 0 ]; then
