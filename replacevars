@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+
+replacevars() {
+  if [ "$1" == "-i" ]; then
+    inplace=true
+    shift
+  fi
+  file="$1"
+  ldelim="{{"
+  rdelim="}}"
+  if [ "$2" != "" ]; then
+    ldelim="$2"
+    if [ "$3" != "" ]; then
+      rdelim="$3"
+    fi
+  fi
+  [ -e "$file" ] || { >&2 echo "No such file: $file"; return 1; }
+  sedfile=$(mktemp)
+  trap "{ rm -f $sedfile > /dev/null 2>&1; }" EXIT
+  msg="special characters should be escaped with '\\'"
+  sed "s|$ldelim|∞|g" $file > /dev/null 2>&1 || { echo "Bad ldelim: '$ldelim', $msg"; exit 1; }
+  sed "s|$rdelim|∞|g" $file > /dev/null 2>&1 || { echo "Bad rdelim: '$rdelim', $msg"; exit 1; }
+  sed "s|$ldelim|∞|g" $file | sed "s|$rdelim|∞|g" | awk -F'∞' '{ for (i=2; i<=NF; i+=2) print $i }' | grep [a-zA-Z] | sort -u | {
+    while read var; do
+      val="$(eval "echo \"\$$var\"")"
+      [ -n "$val" ] || { >&2 echo "Undefined variable: $var"; exit 1; }
+      replacement="$(echo "$val" | sed -e 's/\\/\\\\/g; s/\//\\\//g; s/&/\\\&/g')"
+      echo "s/$ldelim$var$rdelim/$replacement/g" >> "$sedfile"
+    done
+  }
+  n=$(echo $(wc -l < "$sedfile"))
+  if [ "$inplace" == "true" ]; then
+    if [ $n -eq 0 ]; then
+      echo "0 variables replaced"
+    else
+      out=$(mktemp)
+      trap "{ rm -f $out > /dev/null 2>&1; }" EXIT
+      sed -f "$sedfile" "$file" > "$out"
+      mv "$out" "$file" || return 1
+      s='s'
+      [ "$n" == "1" ] && s=''
+      echo "$n variable$s replaced"
+    fi
+  else
+    if [ $n -eq 0 ]; then
+      cat "$file"
+    else
+      sed -f "$sedfile" "$file"
+    fi
+  fi
+}
+
+[ "${BASH_SOURCE[0]}" == "${0}" ] && replacevars "$@"
