@@ -2,7 +2,7 @@
 
 replacevars() {
   if [ "$1" == "--version" ]; then
-    echo "replacevars v1.0.0"
+    echo "replacevars v1.0.1"
     exit 0
   fi
   if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
@@ -77,10 +77,10 @@ replacevars() {
   sed "s|$ldelim|∞|g" $file > /dev/null 2>&1 || { >&2 echo "Bad ldelim: '$ldelim', $msg"; exit 1; }
   sed "s|$rdelim|∞|g" $file > /dev/null 2>&1 || { >&2 echo "Bad rdelim: '$rdelim', $msg"; exit 1; }
   if [ "$testing" == "true" ]; then
-    sed "s|$ldelim|∞|g" $file | sed "s|$rdelim|∞|g" | awk -F'∞' '{ for (i=2; i<=NF; i+=2) print $i }' | grep [a-zA-Z]
+    sed "s|$ldelim|∞|g" $file | sed "s|$rdelim|∞|g" | awk -F'∞' '{ for (i=2; i<=NF; i+=2) print $i }' | grep "^[a-zA-Z]"
     exit $?
   fi
-  sed "s|$ldelim|∞|g" $file | sed "s|$rdelim|∞|g" | awk -F'∞' '{ for (i=2; i<=NF; i+=2) print $i }' | grep [a-zA-Z] | sort -u | {
+  sed "s|$ldelim|∞|g" $file | sed "s|$rdelim|∞|g" | awk -F'∞' '{ for (i=2; i<=NF; i+=2) print $i }' | grep "^[a-zA-Z]" | sort -u | {
     while read var; do
       val="$(eval "echo \"\$$var\"")"
       [ -n "$val" ] || { >&2 echo "Undefined variable: $var"; exit 1; }
