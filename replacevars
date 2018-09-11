@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 replacevars() {
+  if [ "$1" == "--version" ]; then
+    echo "replacevars v1.0.0"
+    exit 0
+  fi
   if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
     echo "replacevars - replace environment variable references in a file"
     echo ""
