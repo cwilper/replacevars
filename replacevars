@@ -33,12 +33,12 @@ replacevars() {
     echo "     file> Hi {{first}} {{last}}"
     echo "  command> first=Some last=Person replacevars -i file"
     echo "     file> Hi Some Person"
-    echo "   stdout> 2 variables replaced"
+    echo "   stdout> 2 variables replaced in file"
     echo ""
     echo "     file> Hi Some Person"
     echo "  command> first=Some last=Person replacevars -i file"
     echo "     file> Hi Some Person"
-    echo "   stdout> 0 variables replaced"
+    echo "   stdout> 0 variables replaced in file"
     return 0
   fi
   if [ "$1" == "-t" ]; then
@@ -61,6 +61,7 @@ replacevars() {
     fi
     shift
     file="$1"
+    export infile=" in $file"
   fi
   [ -n "$file" ] || { >&2 echo "No file specified $h"; return 1; }
   [ -e "$file" ] || { >&2 echo "No such file: $file $h"; return 1; }
@@ -84,7 +85,7 @@ replacevars() {
   sed "s|$ldelim|∞|g" $file | sed "s|$rdelim|∞|g" | awk -F'∞' '{ for (i=2; i<=NF; i+=2) print $i }' | grep "^[a-zA-Z]" | sort -u | {
     while read var; do
       val="$(eval "echo \"\$$var\"")"
-      [ -n "$val" ] || { >&2 echo "Undefined variable: $var"; exit 1; }
+      [ -n "$val" ] || { >&2 echo "Undefined variable$infile: $var"; exit 1; }
       replacement="$(echo "$val" | sed -e 's/\\/\\\\/g; s/\//\\\//g; s/&/\\\&/g')"
       echo "s/$ldelim$var$rdelim/$replacement/g" >> "$sedfile"
     done
@@ -93,15 +94,15 @@ replacevars() {
   n=$(echo $(wc -l < "$sedfile"))
   if [ "$inplace" == "true" ]; then
     if [ $n -eq 0 ]; then
-      echo "0 variables replaced"
+      echo "0 variables replaced in $file"
     else
       out=$(mktemp)
       trap "{ rm -f $out > /dev/null 2>&1; }" EXIT
-      sed -f "$sedfile" "$file" > "$out"
+      sed -f "$sedfile" "$file" > "$out" || return 1
       mv "$out" "$file" || return 1
       s='s'
       [ "$n" == "1" ] && s=''
-      echo "$n variable$s replaced"
+      echo "$n variable$s replaced$infile"
     fi
   else
     if [ $n -eq 0 ]; then
