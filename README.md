@@ -40,10 +40,10 @@ Where:
      file> Hi {{first}} {{last}}
   command> first=Some last=Person replacevars -i file
      file> Hi Some Person
-   stdout> 2 variables replaced
+   stdout> 2 variables replaced in file
 
      file> Hi Some Person
   command> first=Some last=Person replacevars -i file
      file> Hi Some Person
-   stdout> 0 variables replaced
+   stdout> 0 variables replaced in file
 ```
