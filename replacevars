@@ -4,7 +4,7 @@
 replacevars() {
   if [ "$1" == "--version" ]; then
     echo "replacevars v1.0.2"
-    exit 0
+    return
   fi
   if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
     echo "replacevars - replace environment variable references in a file"
@@ -57,7 +57,7 @@ replacevars() {
       inplace=true
     elif [ "$1" != "-f" ]; then
       >&2 echo "Must specify -f, -i, or - $h"
-      exit 1
+      return 1
     fi
     shift
     file="$1"
@@ -80,7 +80,7 @@ replacevars() {
   sed "s|$rdelim|∞|g" $file > /dev/null 2>&1 || { >&2 echo "Bad rdelim: '$rdelim', $msg"; exit 1; }
   if [ "$testing" == "true" ]; then
     sed "s|$ldelim|∞|g" $file | sed "s|$rdelim|∞|g" | awk -F'∞' '{ for (i=2; i<=NF; i+=2) print $i }' | grep "^[a-zA-Z]"
-    exit $?
+    return $?
   fi
   sed "s|$ldelim|∞|g" $file | sed "s|$rdelim|∞|g" | awk -F'∞' '{ for (i=2; i<=NF; i+=2) print $i }' | grep "^[a-zA-Z]" | sort -u | {
     while read var; do
@@ -90,7 +90,7 @@ replacevars() {
       echo "s/$ldelim$var$rdelim/$replacement/g" >> "$sedfile"
     done
   }
-  [ $? -eq 0 ] || exit 1
+  [ $? -eq 0 ] || return 1
   n=$(echo $(wc -l < "$sedfile"))
   if [ "$inplace" == "true" ]; then
     if [ $n -eq 0 ]; then
