@@ -2,6 +2,22 @@
 # https://github.com/cwilper/replacevars
 
 replacevars() {
+  unset _tmp_file
+  unset _tmp_sedfile
+  unset _tmp_out
+  _replacevars "$@"
+  local -i retval=$?
+  _rmif $_tmp_file
+  _rmif $_tmp_sedfile
+  _rmif $_tmp_out
+  return $retval
+}
+
+_rmif() {
+   [[ -n $1 ]] && rm -f $1 > /dev/null 2>&1
+}
+
+_replacevars() {
   if [ "$1" == "--version" ]; then
     echo "replacevars v1.0.3"
     return
@@ -48,7 +64,7 @@ replacevars() {
   h="(-h for help)"
   if [ "$1" == "-" ]; then
     file=$(mktemp)
-    trap "{ rm -f $file > /dev/null 2>&1; }" EXIT
+    _tmp_file=$file
     while read line; do
       echo "$line" >> $file
     done
@@ -73,8 +89,7 @@ replacevars() {
       rdelim="$3"
     fi
   fi
-  sedfile=$(mktemp)
-  trap "{ rm -f $sedfile > /dev/null 2>&1; }" EXIT
+  _tmp_sedfile=$(mktemp)
   msg="special characters should be escaped with '\\'"
   sed "s|$ldelim|∞|g" $file > /dev/null 2>&1 || { >&2 echo "Bad ldelim: '$ldelim', $msg"; exit 1; }
   sed "s|$rdelim|∞|g" $file > /dev/null 2>&1 || { >&2 echo "Bad rdelim: '$rdelim', $msg"; exit 1; }
@@ -87,19 +102,18 @@ replacevars() {
       val="$(eval "echo \"\$$var\"")"
       [ -n "$val" ] || { >&2 echo "Undefined variable$infile: $var"; exit 1; }
       replacement="$(echo "$val" | sed -e 's/\\/\\\\/g; s/\//\\\//g; s/&/\\\&/g')"
-      echo "s/$ldelim$var$rdelim/$replacement/g" >> "$sedfile"
+      echo "s/$ldelim$var$rdelim/$replacement/g" >> $_tmp_sedfile
     done
   }
   [ $? -eq 0 ] || return 1
-  n=$(echo $(wc -l < "$sedfile"))
+  n=$(echo $(wc -l < "$_tmp_sedfile"))
   if [ "$inplace" == "true" ]; then
     if [ $n -eq 0 ]; then
       echo "0 variables replaced in $file"
     else
-      out=$(mktemp)
-      trap "{ rm -f $out > /dev/null 2>&1; }" EXIT
-      sed -f "$sedfile" "$file" > "$out" || return 1
-      mv "$out" "$file" || return 1
+      _tmp_out=$(mktemp)
+      sed -f "$_tmp_sedfile" "$file" > "$_tmp_out" || return 1
+      mv "$_tmp_out" "$file" || return 1
       s='s'
       [ "$n" == "1" ] && s=''
       echo "$n variable$s replaced$infile"
@@ -108,7 +122,7 @@ replacevars() {
     if [ $n -eq 0 ]; then
       cat "$file"
     else
-      sed -f "$sedfile" "$file"
+      sed -f "$_tmp_sedfile" "$file"
     fi
   fi
 }
