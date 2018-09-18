@@ -19,7 +19,7 @@ _rmif() {
 
 _replacevars() {
   if [ "$1" == "--version" ]; then
-    echo "replacevars v1.0.3"
+    echo "replacevars v1.0.4"
     return
   fi
   if [ "$1" == "-h" ] || [ "$1" == "--help" ]; then
