@@ -58,31 +58,31 @@ _replacevars() {
     return 0
   fi
   if [ "$1" == "-t" ]; then
-    testing=true
+    local testing=true
     shift
   fi
   h="(-h for help)"
   if [ "$1" == "-" ]; then
-    file=$(mktemp)
+    local file=$(mktemp)
     _tmp_file=$file
     while read line; do
       echo "$line" >> $file
     done
   else
     if [ "$1" == "-i" ]; then
-      inplace=true
+      local inplace=true
     elif [ "$1" != "-f" ]; then
       >&2 echo "Must specify -f, -i, or - $h"
       return 1
     fi
     shift
-    file="$1"
+    local file="$1"
     export infile=" in $file"
   fi
   [ -n "$file" ] || { >&2 echo "No file specified $h"; return 1; }
   [ -e "$file" ] || { >&2 echo "No such file: $file $h"; return 1; }
-  ldelim="{{"
-  rdelim="}}"
+  local ldelim="{{"
+  local rdelim="}}"
   if [ "$2" != "" ]; then
     ldelim="$2"
     if [ "$3" != "" ]; then
@@ -90,7 +90,7 @@ _replacevars() {
     fi
   fi
   _tmp_sedfile=$(mktemp)
-  msg="special characters should be escaped with '\\'"
+  local msg="special characters should be escaped with '\\'"
   sed "s|$ldelim|∞|g" $file > /dev/null 2>&1 || { >&2 echo "Bad ldelim: '$ldelim', $msg"; exit 1; }
   sed "s|$rdelim|∞|g" $file > /dev/null 2>&1 || { >&2 echo "Bad rdelim: '$rdelim', $msg"; exit 1; }
   if [ "$testing" == "true" ]; then
@@ -99,14 +99,14 @@ _replacevars() {
   fi
   sed "s|$ldelim|∞|g" $file | sed "s|$rdelim|∞|g" | awk -F'∞' '{ for (i=2; i<=NF; i+=2) print $i }' | grep "^[a-zA-Z]" | sort -u | {
     while read var; do
-      val="$(eval "echo \"\$$var\"")"
+      local val="$(eval "echo \"\$$var\"")"
       [ -n "$val" ] || { >&2 echo "Undefined variable$infile: $var"; exit 1; }
-      replacement="$(echo "$val" | sed -e 's/\\/\\\\/g; s/\//\\\//g; s/&/\\\&/g')"
+      local replacement="$(echo "$val" | sed -e 's/\\/\\\\/g; s/\//\\\//g; s/&/\\\&/g')"
       echo "s/$ldelim$var$rdelim/$replacement/g" >> $_tmp_sedfile
     done
   }
   [ $? -eq 0 ] || return 1
-  n=$(echo $(wc -l < "$_tmp_sedfile"))
+  local n=$(echo $(wc -l < "$_tmp_sedfile"))
   if [ "$inplace" == "true" ]; then
     if [ $n -eq 0 ]; then
       echo "0 variables replaced in $file"
@@ -114,7 +114,7 @@ _replacevars() {
       _tmp_out=$(mktemp)
       sed -f "$_tmp_sedfile" "$file" > "$_tmp_out" || return 1
       mv "$_tmp_out" "$file" || return 1
-      s='s'
+      local s='s'
       [ "$n" == "1" ] && s=''
       echo "$n variable$s replaced$infile"
     fi
